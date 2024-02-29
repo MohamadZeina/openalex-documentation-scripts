@@ -4,11 +4,15 @@ import gzip
 import json
 import os
 
-SNAPSHOT_DIR = 'openalex-snapshot'
-CSV_DIR = 'csv-files'
 from tqdm.auto import tqdm
 
-FILES_PER_ENTITY = int(os.environ.get('OPENALEX_DEMO_FILES_PER_ENTITY', '0'))
+# SNAPSHOT_DIR = 'openalex-snapshot'
+# CSV_DIR = 'csv-files'
+
+SNAPSHOT_DIR = '/media/mo/4TB_SSD/mo_data/datasets/openalex-snapshot-feb-2024'
+CSV_DIR = '/media/mo/4TB_SSD/mo_data/datasets/csv-files-feb-2024-test-new-cols'
+
+FILES_PER_ENTITY = 2 # int(os.environ.get('OPENALEX_DEMO_FILES_PER_ENTITY', '0'))
 
 csv_files = {
     'authors': {
@@ -16,7 +20,7 @@ csv_files = {
             'name': os.path.join(CSV_DIR, 'authors.csv.gz'),
             'columns': [
                 'id', 'orcid', 'display_name', 'display_name_alternatives', 'works_count', 'cited_by_count',
-                'last_known_institution', 'works_api_url', 'updated_date',
+                'last_known_institution', 'works_api_url', 'updated_date'
             ]
         },
         'ids': {
@@ -65,12 +69,46 @@ csv_files = {
                 'works_count', 'cited_by_count',
             ]
         },
+        # 'ancestors': {
+        #     'name': os.path.join(CSV_DIR, 'concepts_ancestors.csv.gz'),
+        #     'columns': ['concept_id', 'ancestor_id']
+        # # },
+        # 'counts_by_year': {
+        #     'name': os.path.join(CSV_DIR, 'concepts_counts_by_year.csv.gz'),
+        #     'columns': ['concept_id', 'year', 'works_count', 'cited_by_count', 'oa_works_count']
+        # },
+        # 'ids': {
+        #     'name': os.path.join(CSV_DIR, 'concepts_ids.csv.gz'),
+        #     'columns': ['concept_id', 'openalex', 'wikidata', 'wikipedia', 'umls_aui', 'umls_cui', 'mag']
+        # },
+        # 'related_concepts': {
+        #     'name': os.path.join(CSV_DIR, 'concepts_related_concepts.csv.gz'),
+        #     'columns': ['concept_id', 'related_concept_id', 'score']
+        # }
     },
     'subfields': {
         'subfields': {
             'name': os.path.join(CSV_DIR, 'subfields.csv.gz'),
             'columns': [
                 'id', 'display_name', 'field', 'domain', 'description',
+                'works_count', 'cited_by_count',
+            ]
+        },
+    },
+    'fields': {
+        'fields': {
+            'name': os.path.join(CSV_DIR, 'fields.csv.gz'),
+            'columns': [
+                'id', 'display_name', 'domain', 'description',
+                'works_count', 'cited_by_count',
+            ]
+        },
+    },
+    'domains': {
+        'domains': {
+            'name': os.path.join(CSV_DIR, 'domains.csv.gz'),
+            'columns': [
+                'id', 'display_name', 'description',
                 'works_count', 'cited_by_count',
             ]
         },
@@ -150,6 +188,7 @@ csv_files = {
             'columns': [
                 'id', 'doi', 'title', 'display_name', 'publication_year', 'publication_date', 'type', 'cited_by_count',
                 'is_retracted', 'is_paratext', 'cited_by_api_url', 'abstract_inverted_index','language'
+                #'counts_by_year' # Mo added
             ]
         },
         'primary_locations': {
@@ -473,6 +512,70 @@ def flatten_subfields():
             if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
                 break
 
+def flatten_fields():
+    with gzip.open(csv_files['fields']['fields']['name'], 'wt', encoding='utf-8') as fields_csv:
+            
+        fields_writer = csv.DictWriter(
+            fields_csv, fieldnames=csv_files['fields']['fields']['columns'], extrasaction='ignore'
+        )
+        fields_writer.writeheader()
+
+        seen_field_ids = set()
+
+        files_done = 0
+        for jsonl_file_name in glob.glob(os.path.join(SNAPSHOT_DIR, 'data', 'fields', '*', '*.gz')):
+            print(jsonl_file_name)
+            with gzip.open(jsonl_file_name, 'r') as fields_jsonl:
+                for field_json in fields_jsonl:
+                    if not field_json.strip():
+                        continue
+
+                    field = json.loads(field_json)
+                    
+                    field['domain'] = field['domain']['id']
+
+                    if not (field_id := field.get('id')) or field_id in seen_field_ids:
+                        continue
+
+                    seen_field_ids.add(field_id)
+
+                    fields_writer.writerow(field)
+
+            files_done += 1
+            if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
+                break
+
+def flatten_domains():
+    with gzip.open(csv_files['domains']['domains']['name'], 'wt', encoding='utf-8') as domains_csv:
+            
+        domains_writer = csv.DictWriter(
+            domains_csv, fieldnames=csv_files['domains']['domains']['columns'], extrasaction='ignore'
+        )
+        domains_writer.writeheader()
+
+        seen_domain_ids = set()
+
+        files_done = 0
+        for jsonl_file_name in glob.glob(os.path.join(SNAPSHOT_DIR, 'data', 'domains', '*', '*.gz')):
+            print(jsonl_file_name)
+            with gzip.open(jsonl_file_name, 'r') as domains_jsonl:
+                for domain_json in domains_jsonl:
+                    if not domain_json.strip():
+                        continue
+
+                    domain = json.loads(domain_json)
+                    
+                    if not (domain_id := domain.get('id')) or domain_id in seen_domain_ids:
+                        continue
+
+                    seen_domain_ids.add(domain_id)
+
+                    domains_writer.writerow(domain)
+
+            files_done += 1
+            if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
+                break
+
 def flatten_institutions():
     file_spec = csv_files['institutions']
 
@@ -708,6 +811,9 @@ def flatten_works():
                     # works
                     if (abstract := work.get('abstract_inverted_index')) is not None:
                         work['abstract_inverted_index'] = json.dumps(abstract, ensure_ascii=False)
+                    
+                    # if (counts_by_year := work.get('counts_by_year')) is not None:
+                    #     work['counts_by_year'] = json.dumps(counts_by_year, ensure_ascii=False)
 
                     works_writer.writerow(work)
 
@@ -848,11 +954,14 @@ def init_dict_writer(csv_file, file_spec, **kwargs):
 
 
 if __name__ == '__main__':
-    flatten_authors()
-    flatten_concepts()
-    flatten_institutions()
-    flatten_publishers()
-    flatten_sources()
+    print(f'Going to flatten {FILES_PER_ENTITY} files per entity')
+    # flatten_authors()
+    # flatten_concepts()
     flatten_topics()
     flatten_subfields()
+    flatten_fields()
+    flatten_domains()
+    # flatten_institutions()
+    # flatten_publishers()
+    # flatten_sources()
     flatten_works()
