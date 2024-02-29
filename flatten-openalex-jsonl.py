@@ -170,6 +170,12 @@ csv_files = {
                 'work_id', 'concept_id', 'score'
             ]
         },
+        'topics': {
+            'name': os.path.join(CSV_DIR, 'works_topics.csv.gz'),
+            'columns': [
+                'work_id', 'topic_id', 'display_name', 'score', 'subfield', 'field', 'domain'
+            ]
+        },
         'ids': {
             'name': os.path.join(CSV_DIR, 'works_ids.csv.gz'),
             'columns': [
@@ -200,6 +206,12 @@ csv_files = {
                 'work_id', 'related_work_id'
             ]
         },
+        'counts_by_year': {
+            'name': os.path.join(CSV_DIR, 'works_counts_by_year.csv.gz'),
+            'columns': [
+                'work_id', 'year', 'cited_by_count'
+            ]
+        }
     },
 }
 
@@ -527,24 +539,28 @@ def flatten_works():
             gzip.open(file_spec['authorships']['name'], 'wt', encoding='utf-8') as authorships_csv, \
             gzip.open(file_spec['biblio']['name'], 'wt', encoding='utf-8') as biblio_csv, \
             gzip.open(file_spec['concepts']['name'], 'wt', encoding='utf-8') as concepts_csv, \
+            gzip.open(file_spec['topics']['name'], 'wt', encoding='utf-8') as topics_csv, \
             gzip.open(file_spec['ids']['name'], 'wt', encoding='utf-8') as ids_csv, \
             gzip.open(file_spec['mesh']['name'], 'wt', encoding='utf-8') as mesh_csv, \
             gzip.open(file_spec['open_access']['name'], 'wt', encoding='utf-8') as open_access_csv, \
             gzip.open(file_spec['referenced_works']['name'], 'wt', encoding='utf-8') as referenced_works_csv, \
-            gzip.open(file_spec['related_works']['name'], 'wt', encoding='utf-8') as related_works_csv:
+            gzip.open(file_spec['related_works']['name'], 'wt', encoding='utf-8') as related_works_csv, \
+            gzip.open(file_spec['counts_by_year']['name'], 'wt', encoding='utf-8') as counts_by_year_csv:
 
-        works_writer = init_dict_writer(works_csv, file_spec['works'], extrasaction='ignore')
+        works_writer = init_dict_writer(works_csv, file_spec['works'], extrasaction='ignore') #opened gzip csv file, column names, ignore extra columns
         primary_locations_writer = init_dict_writer(primary_locations_csv, file_spec['primary_locations'])
         locations_writer = init_dict_writer(locations, file_spec['locations'])
         best_oa_locations_writer = init_dict_writer(best_oa_locations, file_spec['best_oa_locations'])
         authorships_writer = init_dict_writer(authorships_csv, file_spec['authorships'])
         biblio_writer = init_dict_writer(biblio_csv, file_spec['biblio'])
         concepts_writer = init_dict_writer(concepts_csv, file_spec['concepts'])
+        topics_writer = init_dict_writer(topics_csv, file_spec['topics'])
         ids_writer = init_dict_writer(ids_csv, file_spec['ids'], extrasaction='ignore')
         mesh_writer = init_dict_writer(mesh_csv, file_spec['mesh'])
         open_access_writer = init_dict_writer(open_access_csv, file_spec['open_access'])
         referenced_works_writer = init_dict_writer(referenced_works_csv, file_spec['referenced_works'])
         related_works_writer = init_dict_writer(related_works_csv, file_spec['related_works'])
+        counts_by_year_writer = init_dict_writer(counts_by_year_csv, file_spec['counts_by_year'])
 
         files_done = 0
         for jsonl_file_name in tqdm(glob.glob(os.path.join(SNAPSHOT_DIR, 'data', 'works', '*', '*.gz'))):
@@ -636,6 +652,20 @@ def flatten_works():
                                 'concept_id': concept_id,
                                 'score': concept.get('score'),
                             })
+                    
+                    # topics
+                    if topics := work.get('topics'):
+                        for topic in topics:
+                            if topic_id := topic.get('id'):
+                                topics_writer.writerow({
+                                    'work_id': work_id,
+                                    'topic_id': topic_id,
+                                    # 'display_name': topic.get('display_name'), # Should be in topics.csv
+                                    'score': topic.get('score'),
+                                    # 'subfield': topic.get('subfield'),
+                                    # 'field': topic.get('field'),
+                                    # 'domain': topic.get('domain')
+                                })
 
                     # ids
                     if ids := work.get('ids'):
@@ -667,6 +697,12 @@ def flatten_works():
                                 'work_id': work_id,
                                 'related_work_id': related_work
                             })
+
+                    # counts_by_year
+                    if counts_by_year := work.get('counts_by_year'):
+                        for count_by_year in counts_by_year:
+                            count_by_year['work_id'] = work_id
+                            counts_by_year_writer.writerow(count_by_year)
 
             files_done += 1
             if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
