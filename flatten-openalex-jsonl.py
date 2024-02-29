@@ -6,6 +6,7 @@ import os
 
 SNAPSHOT_DIR = 'openalex-snapshot'
 CSV_DIR = 'csv-files'
+from tqdm.auto import tqdm
 
 FILES_PER_ENTITY = int(os.environ.get('OPENALEX_DEMO_FILES_PER_ENTITY', '0'))
 
@@ -546,7 +547,7 @@ def flatten_works():
         related_works_writer = init_dict_writer(related_works_csv, file_spec['related_works'])
 
         files_done = 0
-        for jsonl_file_name in glob.glob(os.path.join(SNAPSHOT_DIR, 'data', 'works', '*', '*.gz')):
+        for jsonl_file_name in tqdm(glob.glob(os.path.join(SNAPSHOT_DIR, 'data', 'works', '*', '*.gz'))):
             print(jsonl_file_name)
             with gzip.open(jsonl_file_name, 'r') as works_jsonl:
                 for work_json in works_jsonl:
