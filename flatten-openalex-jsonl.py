@@ -57,6 +57,24 @@ csv_files = {
             'columns': ['concept_id', 'related_concept_id', 'score']
         }
     },
+    'topics': {
+        'topics': {
+            'name': os.path.join(CSV_DIR, 'topics.csv.gz'),
+            'columns': [
+                'id', 'display_name', 'subfield', 'field', 'domain', 'description', 'keywords', 
+                'works_count', 'cited_by_count',
+            ]
+        },
+    },
+    'subfields': {
+        'subfields': {
+            'name': os.path.join(CSV_DIR, 'subfields.csv.gz'),
+            'columns': [
+                'id', 'display_name', 'field', 'domain', 'description',
+                'works_count', 'cited_by_count',
+            ]
+        },
+    },
     'institutions': {
         'institutions': {
             'name': os.path.join(CSV_DIR, 'institutions.csv.gz'),
@@ -342,6 +360,118 @@ def flatten_concepts():
             if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
                 break
 
+def flatten_topics():
+    with gzip.open(csv_files['topics']['topics']['name'], 'wt', encoding='utf-8') as topics_csv:
+            # gzip.open(csv_files['concepts']['ancestors']['name'], 'wt', encoding='utf-8') as ancestors_csv, \
+            # gzip.open(csv_files['concepts']['counts_by_year']['name'], 'wt', encoding='utf-8') as counts_by_year_csv, \
+            # gzip.open(csv_files['concepts']['ids']['name'], 'wt', encoding='utf-8') as ids_csv, \
+            # gzip.open(csv_files['concepts']['related_concepts']['name'], 'wt', encoding='utf-8') as related_concepts_csv:
+
+        topics_writer = csv.DictWriter(
+            topics_csv, fieldnames=csv_files['topics']['topics']['columns'], extrasaction='ignore'
+        )
+        topics_writer.writeheader()
+
+        # ancestors_writer = csv.DictWriter(ancestors_csv, fieldnames=csv_files['concepts']['ancestors']['columns'])
+        # ancestors_writer.writeheader()
+
+        # counts_by_year_writer = csv.DictWriter(counts_by_year_csv, fieldnames=csv_files['concepts']['counts_by_year']['columns'])
+        # counts_by_year_writer.writeheader()
+
+        # ids_writer = csv.DictWriter(ids_csv, fieldnames=csv_files['concepts']['ids']['columns'])
+        # ids_writer.writeheader()
+
+        # related_concepts_writer = csv.DictWriter(related_concepts_csv, fieldnames=csv_files['concepts']['related_concepts']['columns'])
+        # related_concepts_writer.writeheader()
+
+        seen_topic_ids = set()
+
+        files_done = 0
+        for jsonl_file_name in glob.glob(os.path.join(SNAPSHOT_DIR, 'data', 'topics', '*', '*.gz')):
+            print(jsonl_file_name)
+            with gzip.open(jsonl_file_name, 'r') as topics_jsonl:
+                for topic_json in topics_jsonl:
+                    if not topic_json.strip():
+                        continue
+
+                    topic = json.loads(topic_json)
+                    
+                    topic['subfield'] = topic['subfield']['id']
+                    topic['field'] = topic['field']['id']
+                    topic['domain'] = topic['domain']['id']
+
+                    if not (topic_id := topic.get('id')) or topic_id in seen_topic_ids:
+                        continue
+
+                    seen_topic_ids.add(topic_id)
+
+                    topics_writer.writerow(topic)
+
+                    # if concept_ids := concept.get('ids'):
+                    #     concept_ids['concept_id'] = concept_id
+                    #     concept_ids['umls_aui'] = json.dumps(concept_ids.get('umls_aui'), ensure_ascii=False)
+                    #     concept_ids['umls_cui'] = json.dumps(concept_ids.get('umls_cui'), ensure_ascii=False)
+                    #     ids_writer.writerow(concept_ids)
+
+                    # if ancestors := concept.get('ancestors'):
+                    #     for ancestor in ancestors:
+                    #         if ancestor_id := ancestor.get('id'):
+                    #             ancestors_writer.writerow({
+                    #                 'concept_id': concept_id,
+                    #                 'ancestor_id': ancestor_id
+                    #             })
+
+                    # if counts_by_year := concept.get('counts_by_year'):
+                    #     for count_by_year in counts_by_year:
+                    #         count_by_year['concept_id'] = concept_id
+                    #         counts_by_year_writer.writerow(count_by_year)
+
+                    # if related_concepts := concept.get('related_concepts'):
+                    #     for related_concept in related_concepts:
+                    #         if related_concept_id := related_concept.get('id'):
+                    #             related_concepts_writer.writerow({
+                    #                 'concept_id': concept_id,
+                    #                 'related_concept_id': related_concept_id,
+                    #                 'score': related_concept.get('score')
+                    #             })
+
+            files_done += 1
+            if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
+                break
+
+def flatten_subfields():
+    with gzip.open(csv_files['subfields']['subfields']['name'], 'wt', encoding='utf-8') as subfields_csv:
+            
+        subfields_writer = csv.DictWriter(
+            subfields_csv, fieldnames=csv_files['subfields']['subfields']['columns'], extrasaction='ignore'
+        )
+        subfields_writer.writeheader()
+
+        seen_subfield_ids = set()
+
+        files_done = 0
+        for jsonl_file_name in glob.glob(os.path.join(SNAPSHOT_DIR, 'data', 'subfields', '*', '*.gz')):
+            print(jsonl_file_name)
+            with gzip.open(jsonl_file_name, 'r') as subfields_jsonl:
+                for subfield_json in subfields_jsonl:
+                    if not subfield_json.strip():
+                        continue
+
+                    subfield = json.loads(subfield_json)
+                    
+                    subfield['field'] = subfield['field']['id']
+                    subfield['domain'] = subfield['domain']['id']
+
+                    if not (subfield_id := subfield.get('id')) or subfield_id in seen_subfield_ids:
+                        continue
+
+                    seen_subfield_ids.add(subfield_id)
+
+                    subfields_writer.writerow(subfield)
+
+            files_done += 1
+            if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
+                break
 
 def flatten_institutions():
     file_spec = csv_files['institutions']
@@ -723,4 +853,6 @@ if __name__ == '__main__':
     flatten_institutions()
     flatten_publishers()
     flatten_sources()
+    flatten_topics()
+    flatten_subfields()
     flatten_works()
