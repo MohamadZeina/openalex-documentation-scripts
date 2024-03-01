@@ -1,0 +1,20 @@
+{"id": "https://openalex.org/T10077", 
+"display_name": "Molecular Mechanisms of Synaptic Plasticity and Neurological Disorders", 
+"subfield": 
+{"id": "https://openalex.org/subfields/2804", 
+"display_name": "Cellular and Molecular Neuroscience"}, 
+"field": {"id": "https://openalex.org/fields/28", 
+"display_name": "Neuroscience"}, 
+"domain": {"id": "https://openalex.org/domains/1", 
+"display_name": "Life Sciences"}, 
+"description": "This cluster of papers explores the molecular mechanisms underlying synaptic plasticity, focusing on neurotransmission, GABAergic and glutamatergic systems, neuronal circuits, astrocyte function, NMDA receptors, dendritic spines, and long-term potentiation. The research also investigates the relevance of these mechanisms to neurological disorders.", 
+"keywords": ["Synaptic Plasticity", "Neurotransmission", "GABAergic", "Glutamate Receptors", "Neuronal Circuits", "Astrocyte Function", "NMDA Receptors", "Dendritic Spines", "Long-Term Potentiation", "Neurological Disorders"], 
+"ids": {
+    "openalex": "https://openalex.org/T10077", 
+    "wikipedia": "https://en.wikipedia.org/wiki/Synaptic_plasticity"}, 
+    "works_count": 188189, 
+    "cited_by_count": 7229989, 
+    "works_api_url": "https://api.openalex.org/works?filter=topics.id:T10077", 
+    "updated_date": "2024-02-26T04:50:40.527696", 
+"created_date": "2024-01-23", 
+"updated": "2024-02-26T04:50:40.527696"}
