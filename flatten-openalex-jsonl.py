@@ -20,7 +20,10 @@ csv_files = {
             'name': os.path.join(CSV_DIR, 'authors.csv.gz'),
             'columns': [
                 'id', 'orcid', 'display_name', 'display_name_alternatives', 'works_count', 'cited_by_count',
-                'last_known_institution', 'works_api_url', 'updated_date'
+                'last_known_institution', 'works_api_url', 'updated_date',
+                # Mo added
+                '2yr_mean_citedness', 'h_index', 'i10_index', 'oa_percent', 
+                '2yr_works_count', '2yr_cited_by_count', '2yr_i10_index', '2yr_h_index' 
             ]
         },
         'ids': {
@@ -187,8 +190,10 @@ csv_files = {
             'name': os.path.join(CSV_DIR, 'works.csv.gz'),
             'columns': [
                 'id', 'doi', 'title', 'display_name', 'publication_year', 'publication_date', 'type', 'cited_by_count',
-                'is_retracted', 'is_paratext', 'cited_by_api_url', 'abstract_inverted_index','language'
+                'is_retracted', 'is_paratext', 'cited_by_api_url', 'abstract_inverted_index','language',
                 #'counts_by_year' # Mo added
+                '2yr_cited_by_count', 'authors_count', 
+                'locations_count', 'referenced_works_count', 'grants', 'apc_list', 'apc_paid'
             ]
         },
         'primary_locations': {
@@ -268,7 +273,13 @@ csv_files = {
             'columns': [
                 'work_id', 'year', 'cited_by_count'
             ]
-        }
+        },
+        'sustainable_development_goals': {
+            'name': os.path.join(CSV_DIR, 'works_sustainable_development_goals.csv.gz'),
+            'columns': [
+                'work_id', 'id', 'score'
+            ]
+        },
     },
 }
 
@@ -303,6 +314,9 @@ def flatten_authors():
 
                     if not (author_id := author.get('id')):
                         continue
+
+                    for summary_col in ['2yr_mean_citedness', 'h_index', 'i10_index', 'oa_percent', '2yr_works_count', '2yr_cited_by_count', '2yr_i10_index', '2yr_h_index' ]:
+                        author[summary_col] = author.get('summary_stats', {}).get(summary_col)
 
                     # authors
                     author['display_name_alternatives'] = json.dumps(author.get('display_name_alternatives'), ensure_ascii=False)
@@ -778,7 +792,8 @@ def flatten_works():
             gzip.open(file_spec['open_access']['name'], 'wt', encoding='utf-8') as open_access_csv, \
             gzip.open(file_spec['referenced_works']['name'], 'wt', encoding='utf-8') as referenced_works_csv, \
             gzip.open(file_spec['related_works']['name'], 'wt', encoding='utf-8') as related_works_csv, \
-            gzip.open(file_spec['counts_by_year']['name'], 'wt', encoding='utf-8') as counts_by_year_csv:
+            gzip.open(file_spec['counts_by_year']['name'], 'wt', encoding='utf-8') as counts_by_year_csv, \
+            gzip.open(file_spec['sustainable_development_goals']['name'], 'wt', encoding='utf-8') as sustainable_development_goals_csv:
 
         works_writer = init_dict_writer(works_csv, file_spec['works'], extrasaction='ignore') #opened gzip csv file, column names, ignore extra columns
         primary_locations_writer = init_dict_writer(primary_locations_csv, file_spec['primary_locations'])
@@ -794,6 +809,7 @@ def flatten_works():
         referenced_works_writer = init_dict_writer(referenced_works_csv, file_spec['referenced_works'])
         related_works_writer = init_dict_writer(related_works_csv, file_spec['related_works'])
         counts_by_year_writer = init_dict_writer(counts_by_year_csv, file_spec['counts_by_year'])
+        sustainable_development_goal_writer = init_dict_writer(sustainable_development_goals_csv, file_spec['sustainable_development_goals'], extrasaction='ignore')
 
         files_done = 0
         for jsonl_file_name in tqdm(glob.glob(os.path.join(SNAPSHOT_DIR, 'data', 'works', '*', '*.gz'))):
@@ -811,6 +827,8 @@ def flatten_works():
                     # works
                     if (abstract := work.get('abstract_inverted_index')) is not None:
                         work['abstract_inverted_index'] = json.dumps(abstract, ensure_ascii=False)
+
+                    work['2yr_cited_by_count'] = work.get('summary_stats', {}).get('2yr_cited_by_count')
                     
                     # if (counts_by_year := work.get('counts_by_year')) is not None:
                     #     work['counts_by_year'] = json.dumps(counts_by_year, ensure_ascii=False)
@@ -940,6 +958,12 @@ def flatten_works():
                             count_by_year['work_id'] = work_id
                             counts_by_year_writer.writerow(count_by_year)
 
+                    # sustainable_development_goals
+                    if sustainable_development_goals := work.get('sustainable_development_goals'):
+                        for sustainable_development_goal in sustainable_development_goals:
+                            sustainable_development_goal['work_id'] = work_id
+                            sustainable_development_goal_writer.writerow(sustainable_development_goal)
+
             files_done += 1
             if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
                 break
@@ -955,7 +979,7 @@ def init_dict_writer(csv_file, file_spec, **kwargs):
 
 if __name__ == '__main__':
     print(f'Going to flatten {FILES_PER_ENTITY} files per entity')
-    # flatten_authors()
+    flatten_authors()
     # flatten_concepts()
     flatten_topics()
     flatten_subfields()
