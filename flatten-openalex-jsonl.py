@@ -4,6 +4,8 @@ import gzip
 import json
 import os
 
+from contextlib import ExitStack
+
 from tqdm.auto import tqdm
 
 # SNAPSHOT_DIR = 'openalex-snapshot'
@@ -253,7 +255,8 @@ csv_files = {
         'open_access': {
             'name': os.path.join(CSV_DIR, 'works_open_access.csv.gz'),
             'columns': [
-                'work_id', 'is_oa', 'oa_status', 'oa_url', 'any_repository_has_fulltext'
+                'work_id', 'is_oa', 'oa_status', 'oa_url', 'any_repository_has_fulltext',
+                'apc_list_value_usd', 'apc_paid_value_usd'
             ]
         },
         'referenced_works': {
@@ -277,7 +280,13 @@ csv_files = {
         'sustainable_development_goals': {
             'name': os.path.join(CSV_DIR, 'works_sustainable_development_goals.csv.gz'),
             'columns': [
-                'work_id', 'id', 'score'
+                'work_id', 'id', 'score' # 'display_name' redundant
+            ]
+        },
+        'grants': {
+            'name': os.path.join(CSV_DIR, 'works_grants.csv.gz'),
+            'columns': [
+                'work_id', 'funder', 'award_id' # 'funder_display_name' redundant
             ]
         },
     },
@@ -336,7 +345,6 @@ def flatten_authors():
             files_done += 1
             if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
                 break
-
 
 def flatten_concepts():
     with gzip.open(csv_files['concepts']['concepts']['name'], 'wt', encoding='utf-8') as concepts_csv, \
@@ -672,7 +680,6 @@ def flatten_institutions():
             if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
                 break
 
-
 def flatten_publishers():
     with gzip.open(csv_files['publishers']['publishers']['name'], 'wt', encoding='utf-8') as publishers_csv, \
             gzip.open(csv_files['publishers']['counts_by_year']['name'], 'wt', encoding='utf-8') as counts_by_year_csv, \
@@ -723,7 +730,6 @@ def flatten_publishers():
             files_done += 1
             if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
                 break
-
 
 def flatten_sources():
     with gzip.open(csv_files['sources']['sources']['name'], 'wt', encoding='utf-8') as sources_csv, \
@@ -779,21 +785,39 @@ def flatten_sources():
 def flatten_works():
     file_spec = csv_files['works']
 
-    with gzip.open(file_spec['works']['name'], 'wt', encoding='utf-8') as works_csv, \
-            gzip.open(file_spec['primary_locations']['name'], 'wt', encoding='utf-8') as primary_locations_csv, \
-            gzip.open(file_spec['locations']['name'], 'wt', encoding='utf-8') as locations, \
-            gzip.open(file_spec['best_oa_locations']['name'], 'wt', encoding='utf-8') as best_oa_locations, \
-            gzip.open(file_spec['authorships']['name'], 'wt', encoding='utf-8') as authorships_csv, \
-            gzip.open(file_spec['biblio']['name'], 'wt', encoding='utf-8') as biblio_csv, \
-            gzip.open(file_spec['concepts']['name'], 'wt', encoding='utf-8') as concepts_csv, \
-            gzip.open(file_spec['topics']['name'], 'wt', encoding='utf-8') as topics_csv, \
-            gzip.open(file_spec['ids']['name'], 'wt', encoding='utf-8') as ids_csv, \
-            gzip.open(file_spec['mesh']['name'], 'wt', encoding='utf-8') as mesh_csv, \
-            gzip.open(file_spec['open_access']['name'], 'wt', encoding='utf-8') as open_access_csv, \
-            gzip.open(file_spec['referenced_works']['name'], 'wt', encoding='utf-8') as referenced_works_csv, \
-            gzip.open(file_spec['related_works']['name'], 'wt', encoding='utf-8') as related_works_csv, \
-            gzip.open(file_spec['counts_by_year']['name'], 'wt', encoding='utf-8') as counts_by_year_csv, \
-            gzip.open(file_spec['sustainable_development_goals']['name'], 'wt', encoding='utf-8') as sustainable_development_goals_csv:
+    # with gzip.open(file_spec['works']['name'], 'wt', encoding='utf-8') as works_csv, \
+    #         gzip.open(file_spec['primary_locations']['name'], 'wt', encoding='utf-8') as primary_locations_csv, \
+    #         gzip.open(file_spec['locations']['name'], 'wt', encoding='utf-8') as locations, \
+    #         gzip.open(file_spec['best_oa_locations']['name'], 'wt', encoding='utf-8') as best_oa_locations, \
+    #         gzip.open(file_spec['authorships']['name'], 'wt', encoding='utf-8') as authorships_csv, \
+    #         gzip.open(file_spec['biblio']['name'], 'wt', encoding='utf-8') as biblio_csv, \
+    #         gzip.open(file_spec['concepts']['name'], 'wt', encoding='utf-8') as concepts_csv, \
+    #         gzip.open(file_spec['topics']['name'], 'wt', encoding='utf-8') as topics_csv, \
+    #         gzip.open(file_spec['ids']['name'], 'wt', encoding='utf-8') as ids_csv, \
+    #         gzip.open(file_spec['mesh']['name'], 'wt', encoding='utf-8') as mesh_csv, \
+    #         gzip.open(file_spec['open_access']['name'], 'wt', encoding='utf-8') as open_access_csv, \
+    #         gzip.open(file_spec['referenced_works']['name'], 'wt', encoding='utf-8') as referenced_works_csv, \
+    #         gzip.open(file_spec['related_works']['name'], 'wt', encoding='utf-8') as related_works_csv, \
+    #         gzip.open(file_spec['counts_by_year']['name'], 'wt', encoding='utf-8') as counts_by_year_csv, \
+    #         gzip.open(file_spec['sustainable_development_goals']['name'], 'wt', encoding='utf-8') as sustainable_development_goals_csv:
+    #         # gzip.open(file_spec['grants']['name'], 'wt', encoding='utf-8') as grants_csv:
+    with ExitStack() as stack:
+        works_csv = stack.enter_context(gzip.open(file_spec['works']['name'], 'wt', encoding='utf-8'))
+        primary_locations_csv = stack.enter_context(gzip.open(file_spec['primary_locations']['name'], 'wt', encoding='utf-8'))
+        locations = stack.enter_context(gzip.open(file_spec['locations']['name'], 'wt', encoding='utf-8'))
+        best_oa_locations = stack.enter_context(gzip.open(file_spec['best_oa_locations']['name'], 'wt', encoding='utf-8'))
+        authorships_csv = stack.enter_context(gzip.open(file_spec['authorships']['name'], 'wt', encoding='utf-8'))
+        biblio_csv = stack.enter_context(gzip.open(file_spec['biblio']['name'], 'wt', encoding='utf-8'))
+        concepts_csv = stack.enter_context(gzip.open(file_spec['concepts']['name'], 'wt', encoding='utf-8'))
+        topics_csv = stack.enter_context(gzip.open(file_spec['topics']['name'], 'wt', encoding='utf-8'))
+        ids_csv = stack.enter_context(gzip.open(file_spec['ids']['name'], 'wt', encoding='utf-8'))
+        mesh_csv = stack.enter_context(gzip.open(file_spec['mesh']['name'], 'wt', encoding='utf-8'))
+        open_access_csv = stack.enter_context(gzip.open(file_spec['open_access']['name'], 'wt', encoding='utf-8'))
+        referenced_works_csv = stack.enter_context(gzip.open(file_spec['referenced_works']['name'], 'wt', encoding='utf-8'))
+        related_works_csv = stack.enter_context(gzip.open(file_spec['related_works']['name'], 'wt', encoding='utf-8'))
+        counts_by_year_csv = stack.enter_context(gzip.open(file_spec['counts_by_year']['name'], 'wt', encoding='utf-8'))
+        sustainable_development_goals_csv = stack.enter_context(gzip.open(file_spec['sustainable_development_goals']['name'], 'wt', encoding='utf-8'))
+        grants_csv = stack.enter_context(gzip.open(file_spec['grants']['name'], 'wt', encoding='utf-8'))
 
         works_writer = init_dict_writer(works_csv, file_spec['works'], extrasaction='ignore') #opened gzip csv file, column names, ignore extra columns
         primary_locations_writer = init_dict_writer(primary_locations_csv, file_spec['primary_locations'])
@@ -810,6 +834,7 @@ def flatten_works():
         related_works_writer = init_dict_writer(related_works_csv, file_spec['related_works'])
         counts_by_year_writer = init_dict_writer(counts_by_year_csv, file_spec['counts_by_year'])
         sustainable_development_goal_writer = init_dict_writer(sustainable_development_goals_csv, file_spec['sustainable_development_goals'], extrasaction='ignore')
+        grants_writer = init_dict_writer(grants_csv, file_spec['grants'], extrasaction='ignore')
 
         files_done = 0
         for jsonl_file_name in tqdm(glob.glob(os.path.join(SNAPSHOT_DIR, 'data', 'works', '*', '*.gz'))):
@@ -934,6 +959,11 @@ def flatten_works():
                     # open_access
                     if open_access := work.get('open_access'):
                         open_access['work_id'] = work_id
+                        # apc list and paid should strictly go into their own tables, but this'll be easier to work with
+                        if apc_list := work.get('apc_list'):
+                            open_access['apc_list_value_usd'] = apc_list.get('value_usd')
+                        if apc_paid := work.get('apc_paid'):
+                            open_access['apc_paid_value_usd'] = apc_paid.get('value_usd')
                         open_access_writer.writerow(open_access)
 
                     # referenced_works
@@ -963,6 +993,12 @@ def flatten_works():
                         for sustainable_development_goal in sustainable_development_goals:
                             sustainable_development_goal['work_id'] = work_id
                             sustainable_development_goal_writer.writerow(sustainable_development_goal)
+
+                    # grants
+                    if grants := work.get('grants'):
+                        for grant in grants:
+                            grant['work_id'] = work_id
+                            grants_writer.writerow(grant)
 
             files_done += 1
             if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
