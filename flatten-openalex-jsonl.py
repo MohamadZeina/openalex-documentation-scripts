@@ -14,7 +14,7 @@ from tqdm.auto import tqdm
 SNAPSHOT_DIR = '/media/mo/4TB_SSD/mo_data/datasets/openalex-snapshot-feb-2024'
 CSV_DIR = '/media/mo/4TB_SSD/mo_data/datasets/csv-files-feb-2024-test-new-cols'
 
-FILES_PER_ENTITY = 2 # int(os.environ.get('OPENALEX_DEMO_FILES_PER_ENTITY', '0'))
+FILES_PER_ENTITY = int(os.environ.get('OPENALEX_DEMO_FILES_PER_ENTITY', '0'))
 
 csv_files = {
     'authors': {
@@ -195,7 +195,7 @@ csv_files = {
                 'is_retracted', 'is_paratext', 'cited_by_api_url', 'abstract_inverted_index','language',
                 #'counts_by_year' # Mo added
                 '2yr_cited_by_count', 'authors_count', 
-                'locations_count', 'referenced_works_count', 'grants', 'apc_list', 'apc_paid'
+                'locations_count', 'referenced_works_count', # 'grants', 'apc_list', 'apc_paid'
             ]
         },
         'primary_locations': {
@@ -312,7 +312,7 @@ def flatten_authors():
         counts_by_year_writer.writeheader()
 
         files_done = 0
-        for jsonl_file_name in glob.glob(os.path.join(SNAPSHOT_DIR, 'data', 'authors', '*', '*.gz')):
+        for jsonl_file_name in tqdm(glob.glob(os.path.join(SNAPSHOT_DIR, 'data', 'authors', '*', '*.gz'))):
             print(jsonl_file_name)
             with gzip.open(jsonl_file_name, 'r') as authors_jsonl:
                 for author_json in authors_jsonl:
@@ -423,27 +423,11 @@ def flatten_concepts():
 
 def flatten_topics():
     with gzip.open(csv_files['topics']['topics']['name'], 'wt', encoding='utf-8') as topics_csv:
-            # gzip.open(csv_files['concepts']['ancestors']['name'], 'wt', encoding='utf-8') as ancestors_csv, \
-            # gzip.open(csv_files['concepts']['counts_by_year']['name'], 'wt', encoding='utf-8') as counts_by_year_csv, \
-            # gzip.open(csv_files['concepts']['ids']['name'], 'wt', encoding='utf-8') as ids_csv, \
-            # gzip.open(csv_files['concepts']['related_concepts']['name'], 'wt', encoding='utf-8') as related_concepts_csv:
 
         topics_writer = csv.DictWriter(
             topics_csv, fieldnames=csv_files['topics']['topics']['columns'], extrasaction='ignore'
         )
         topics_writer.writeheader()
-
-        # ancestors_writer = csv.DictWriter(ancestors_csv, fieldnames=csv_files['concepts']['ancestors']['columns'])
-        # ancestors_writer.writeheader()
-
-        # counts_by_year_writer = csv.DictWriter(counts_by_year_csv, fieldnames=csv_files['concepts']['counts_by_year']['columns'])
-        # counts_by_year_writer.writeheader()
-
-        # ids_writer = csv.DictWriter(ids_csv, fieldnames=csv_files['concepts']['ids']['columns'])
-        # ids_writer.writeheader()
-
-        # related_concepts_writer = csv.DictWriter(related_concepts_csv, fieldnames=csv_files['concepts']['related_concepts']['columns'])
-        # related_concepts_writer.writeheader()
 
         seen_topic_ids = set()
 
@@ -467,34 +451,6 @@ def flatten_topics():
                     seen_topic_ids.add(topic_id)
 
                     topics_writer.writerow(topic)
-
-                    # if concept_ids := concept.get('ids'):
-                    #     concept_ids['concept_id'] = concept_id
-                    #     concept_ids['umls_aui'] = json.dumps(concept_ids.get('umls_aui'), ensure_ascii=False)
-                    #     concept_ids['umls_cui'] = json.dumps(concept_ids.get('umls_cui'), ensure_ascii=False)
-                    #     ids_writer.writerow(concept_ids)
-
-                    # if ancestors := concept.get('ancestors'):
-                    #     for ancestor in ancestors:
-                    #         if ancestor_id := ancestor.get('id'):
-                    #             ancestors_writer.writerow({
-                    #                 'concept_id': concept_id,
-                    #                 'ancestor_id': ancestor_id
-                    #             })
-
-                    # if counts_by_year := concept.get('counts_by_year'):
-                    #     for count_by_year in counts_by_year:
-                    #         count_by_year['concept_id'] = concept_id
-                    #         counts_by_year_writer.writerow(count_by_year)
-
-                    # if related_concepts := concept.get('related_concepts'):
-                    #     for related_concept in related_concepts:
-                    #         if related_concept_id := related_concept.get('id'):
-                    #             related_concepts_writer.writerow({
-                    #                 'concept_id': concept_id,
-                    #                 'related_concept_id': related_concept_id,
-                    #                 'score': related_concept.get('score')
-                    #             })
 
             files_done += 1
             if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
@@ -781,26 +737,9 @@ def flatten_sources():
             if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
                 break
 
-
 def flatten_works():
     file_spec = csv_files['works']
 
-    # with gzip.open(file_spec['works']['name'], 'wt', encoding='utf-8') as works_csv, \
-    #         gzip.open(file_spec['primary_locations']['name'], 'wt', encoding='utf-8') as primary_locations_csv, \
-    #         gzip.open(file_spec['locations']['name'], 'wt', encoding='utf-8') as locations, \
-    #         gzip.open(file_spec['best_oa_locations']['name'], 'wt', encoding='utf-8') as best_oa_locations, \
-    #         gzip.open(file_spec['authorships']['name'], 'wt', encoding='utf-8') as authorships_csv, \
-    #         gzip.open(file_spec['biblio']['name'], 'wt', encoding='utf-8') as biblio_csv, \
-    #         gzip.open(file_spec['concepts']['name'], 'wt', encoding='utf-8') as concepts_csv, \
-    #         gzip.open(file_spec['topics']['name'], 'wt', encoding='utf-8') as topics_csv, \
-    #         gzip.open(file_spec['ids']['name'], 'wt', encoding='utf-8') as ids_csv, \
-    #         gzip.open(file_spec['mesh']['name'], 'wt', encoding='utf-8') as mesh_csv, \
-    #         gzip.open(file_spec['open_access']['name'], 'wt', encoding='utf-8') as open_access_csv, \
-    #         gzip.open(file_spec['referenced_works']['name'], 'wt', encoding='utf-8') as referenced_works_csv, \
-    #         gzip.open(file_spec['related_works']['name'], 'wt', encoding='utf-8') as related_works_csv, \
-    #         gzip.open(file_spec['counts_by_year']['name'], 'wt', encoding='utf-8') as counts_by_year_csv, \
-    #         gzip.open(file_spec['sustainable_development_goals']['name'], 'wt', encoding='utf-8') as sustainable_development_goals_csv:
-    #         # gzip.open(file_spec['grants']['name'], 'wt', encoding='utf-8') as grants_csv:
     with ExitStack() as stack:
         works_csv = stack.enter_context(gzip.open(file_spec['works']['name'], 'wt', encoding='utf-8'))
         primary_locations_csv = stack.enter_context(gzip.open(file_spec['primary_locations']['name'], 'wt', encoding='utf-8'))
@@ -1004,7 +943,6 @@ def flatten_works():
             if FILES_PER_ENTITY and files_done >= FILES_PER_ENTITY:
                 break
 
-
 def init_dict_writer(csv_file, file_spec, **kwargs):
     writer = csv.DictWriter(
         csv_file, fieldnames=file_spec['columns'], **kwargs
@@ -1012,16 +950,15 @@ def init_dict_writer(csv_file, file_spec, **kwargs):
     writer.writeheader()
     return writer
 
-
 if __name__ == '__main__':
-    print(f'Going to flatten {FILES_PER_ENTITY} files per entity')
+    print(f'Starting flattening. {FILES_PER_ENTITY = } (0 means all files)')
     flatten_authors()
-    # flatten_concepts()
+    flatten_concepts()
     flatten_topics()
     flatten_subfields()
     flatten_fields()
     flatten_domains()
-    # flatten_institutions()
-    # flatten_publishers()
-    # flatten_sources()
+    flatten_institutions()
+    flatten_publishers()
+    flatten_sources()
     flatten_works()
