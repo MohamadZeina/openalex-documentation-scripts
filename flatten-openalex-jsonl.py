@@ -256,6 +256,7 @@ csv_files = {
             'name': os.path.join(CSV_DIR, 'works_open_access.csv.gz'),
             'columns': [
                 'work_id', 'is_oa', 'oa_status', 'oa_url', 'any_repository_has_fulltext',
+                # Mo added
                 'apc_list_value_usd', 'apc_paid_value_usd'
             ]
         },
@@ -449,6 +450,10 @@ def flatten_topics():
                         continue
 
                     seen_topic_ids.add(topic_id)
+
+                    # keywords
+                    if (keywords := topic.get('keywords')) is not None:
+                        topic['keywords'] = json.dumps(keywords, ensure_ascii=False)
 
                     topics_writer.writerow(topic)
 
